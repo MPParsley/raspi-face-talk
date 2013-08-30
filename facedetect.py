@@ -3,7 +3,6 @@
 This program is demonstration for face and object detection using haar-like features.
 The program finds faces in a camera image or video stream and displays a red box around them.
 
-Original C implementation by:  ?
 Python implementation by: Roman Stanchak, James Bowman
 """
 import sys
@@ -19,7 +18,7 @@ import os
 # scale_factor=1.2, min_neighbors=2, flags=CV_HAAR_DO_CANNY_PRUNING, 
 # min_size=<minimum possible face size
 
-min_size = (20, 20)
+min_size = (2, 2)
 image_scale = 2
 haar_scale = 1.2
 min_neighbors = 2
@@ -49,10 +48,10 @@ def detect_and_draw(img, cascade, detected):
         t = cv.GetTickCount()
         faces = cv.HaarDetectObjects(small_img, cascade, cv.CreateMemStorage(0), haar_scale, min_neighbors, haar_flags, min_size)
         t = cv.GetTickCount() - t
-        #print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
+        print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
         if faces:
 	    if detected == 0:
-		os.system('festival --tts hi &')
+		# os.system('festival --tts hi &')
 		detected = 1
             for ((x, y, w, h), n) in faces:
                 # the input to cv.HaarDetectObjects was resized, so scale the 
@@ -68,12 +67,19 @@ def detect_and_draw(img, cascade, detected):
 		valTilt = map(stlt, 0, 240, 0.10, 0.14)
 		#print valPan, valTilt
 		print "Face at: ", pt1[0], ",", pt2[0], "\t", pt1[1], ",", pt2[1]
-		os.system('echo "6="' + str(valTilt) + ' > /dev/pi-blaster')
-		os.system('echo "7="' + str(valPan) + ' > /dev/pi-blaster')
+
+		if span < 150:
+			 print "left"
+		if span > 150: 
+			 print "right"
+
+		#os.system('echo "6="' + str(valTilt) + ' > /dev/pi-blaster')
+		#os.system('echo "7="' + str(valPan) + ' > /dev/pi-blaster')
 	else:
 		if detected == 1:
 			#print "Last seen at: ", pt1[0], ",", pt2[0], "\t", pt1[1], ",", pt2[1]
-			os.system('festival --tts bye &')
+			#os.system('festival --tts bye &')
+			status = "just disappeared"
 		detected = 0
 
     cv.ShowImage("result", img)
@@ -86,39 +92,21 @@ if __name__ == '__main__':
 
     cascade = cv.Load(options.cascade)
     
-    if len(args) != 1:
-        parser.print_help()
-        sys.exit(1)
-
-    input_name = args[0]
-    if input_name.isdigit():
-        capture = cv.CreateCameraCapture(int(input_name))
-    else:
-        capture = None
-
     cv.NamedWindow("result", 1)
 
     width = 320 #leave None for auto-detection
     height = 240 #leave None for auto-detection
 
-    if width is None:
-    	width = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH))
-    else:
-    	cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_WIDTH,width)    
 
-    if height is None:
-	height = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT))
-    else:
-	cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_HEIGHT,height) 
-
-    if capture:
+    if True:
 	detected = 0
         frame_copy = None
         while True:
 
-            frame = cv.QueryFrame(capture)
+	    os.system("raspistill -t 0 -hf -rot 180 -p -99,-99,100,100 -o /run/shm/image.jpg -w 320 -h 240 ")
+   	    frame=cv.LoadImage('/run/shm/image.jpg',cv.CV_LOAD_IMAGE_COLOR)
+	    frame_copy=frame
             if not frame:
-                cv.WaitKey(0)
                 break
             if not frame_copy:
                 frame_copy = cv.CreateImage((frame.width,frame.height), cv.IPL_DEPTH_8U, frame.nChannels)
@@ -132,10 +120,5 @@ if __name__ == '__main__':
 
             if cv.WaitKey(10) >= 0:
                 break
-    else:
-        image = cv.LoadImage(input_name, 1)
-        detect_and_draw(image, cascade, detected)
-	print "Inside the man else"
-        cv.WaitKey(0)
 
     cv.DestroyWindow("result")
