@@ -19,4 +19,12 @@ OpenCV uses to identify the faces.  I modified the facedetect.py script
 to work with the servos and festival output - this is the script that
 you have now from this Github repo.
 
+run using 
+
+./execute.sh
+
+or 
+
+./facedetect.py --cascade=face.xml 0
+
 
