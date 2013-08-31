@@ -5,10 +5,9 @@ The program finds faces in a camera image or video stream and displays a red box
 
 Python implementation by: Roman Stanchak, James Bowman
 """
-import sys
+import os,sys,subprocess
 import cv2.cv as cv
 from optparse import OptionParser
-import os
 
 # Parameters for haar detection
 # From the API:
@@ -19,7 +18,7 @@ import os
 # min_size=<minimum possible face size
 
 min_size = (2, 2)
-image_scale = 2
+image_scale = 3
 haar_scale = 1.2
 min_neighbors = 2
 haar_flags = 0
@@ -47,8 +46,8 @@ def detect_and_draw(img, cascade, detected):
     if(cascade):
         t = cv.GetTickCount()
         faces = cv.HaarDetectObjects(small_img, cascade, cv.CreateMemStorage(0), haar_scale, min_neighbors, haar_flags, min_size)
-        t = cv.GetTickCount() - t
-        print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
+        # t = cv.GetTickCount() - t
+        # print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
         if faces:
 	    if detected == 0:
 		# os.system('festival --tts hi &')
@@ -69,9 +68,9 @@ def detect_and_draw(img, cascade, detected):
 		print "Face at: ", pt1[0], ",", pt2[0], "\t", pt1[1], ",", pt2[1]
 
 		if span < 150:
-			 print "left"
+			 print "left", 150-span
 		if span > 150: 
-			 print "right"
+			 print "right", span-150
 
 		#os.system('echo "6="' + str(valTilt) + ' > /dev/pi-blaster')
 		#os.system('echo "7="' + str(valPan) + ' > /dev/pi-blaster')
@@ -94,30 +93,39 @@ if __name__ == '__main__':
     
     cv.NamedWindow("result", 1)
 
-    width = 320 #leave None for auto-detection
-    height = 240 #leave None for auto-detection
 
-
+    command = "raspistill -tl 100 -n -rot 180 -o /run/shm/image.jpg -w 320 -h 240"
+    p=subprocess.Popen(command,shell=True)
+    #os.system ("raspistill -tl 75 -n -rot 180 -o /run/shm/image.jpg -w 320 -h 240 &" )
     if True:
 	detected = 0
         frame_copy = None
         while True:
+        
+	    t = cv.GetTickCount() 
 
-	    os.system("raspistill -t 0 -hf -rot 180 -p -99,-99,100,100 -o /run/shm/image.jpg -w 320 -h 240 ")
-   	    frame=cv.LoadImage('/run/shm/image.jpg',cv.CV_LOAD_IMAGE_COLOR)
+	    #os.system("raspistill -t 0 -hf -rot 180 -p -99,-99,100,100 -o /run/shm/image.jpg -w 320 -h 240 ")
+
+	    if p.poll() is not None:
+			print "restarting raspistill"
+    			p=subprocess.Popen(command,shell=True)
+
+	    retry = True
+	    # keep trying to load frame until successful
+	    while retry:
+		retry = False
+   	    	try: 
+		    frame=cv.LoadImage('/run/shm/image.jpg',cv.CV_LOAD_IMAGE_COLOR)
+		except IOError:
+			retry = True
+		 
+	    
 	    frame_copy=frame
-            if not frame:
-                break
-            if not frame_copy:
-                frame_copy = cv.CreateImage((frame.width,frame.height), cv.IPL_DEPTH_8U, frame.nChannels)
-
-            if frame.origin == cv.IPL_ORIGIN_TL:
-                cv.Copy(frame, frame_copy)
-            else:
-                cv.Flip(frame, frame_copy, 0)
             
             detected = detect_and_draw(frame_copy, cascade, detected)
 
+	    t = cv.GetTickCount()  - t
+            print "capture = %gfps" % (1000 / (t/(cv.GetTickFrequency()*1000.)))
             if cv.WaitKey(10) >= 0:
                 break
 
