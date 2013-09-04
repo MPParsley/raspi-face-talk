@@ -5,7 +5,7 @@ The program finds faces in a camera image or video stream and displays a red box
 
 Python implementation by: Roman Stanchak, James Bowman
 """
-import os,sys,subprocess
+import os,subprocess,glob,time
 import cv2.cv as cv
 from optparse import OptionParser
 
@@ -94,35 +94,27 @@ if __name__ == '__main__':
     cv.NamedWindow("result", 1)
 
 
-    command = "raspistill -tl 100 -n -rot 180 -o /run/shm/image.jpg -w 320 -h 240"
+    command = "raspistill -tl 90 -n -rot 180 -o /run/shm/image%d.jpg -w 320 -h 240 "
     p=subprocess.Popen(command,shell=True)
-    #os.system ("raspistill -tl 75 -n -rot 180 -o /run/shm/image.jpg -w 320 -h 240 &" )
+
+    time.sleep(0.5)
     if True:
 	detected = 0
-        frame_copy = None
+        frame = None
         while True:
         
 	    t = cv.GetTickCount() 
-
-	    #os.system("raspistill -t 0 -hf -rot 180 -p -99,-99,100,100 -o /run/shm/image.jpg -w 320 -h 240 ")
 
 	    if p.poll() is not None:
 			print "restarting raspistill"
     			p=subprocess.Popen(command,shell=True)
 
-	    retry = True
-	    # keep trying to load frame until successful
-	    while retry:
-		retry = False
-   	    	try: 
-		    frame=cv.LoadImage('/run/shm/image.jpg',cv.CV_LOAD_IMAGE_COLOR)
-		except IOError:
-			retry = True
+	    files = filter(os.path.isfile, glob.glob('/run/shm/' + "image*jpg"))
+	    files.sort(key=lambda x: os.path.getmtime(x))
+	    imagefile = (files[-2])
 		 
-	    
-	    frame_copy=frame
-            
-            detected = detect_and_draw(frame_copy, cascade, detected)
+	    frame=cv.LoadImage(imagefile,cv.CV_LOAD_IMAGE_COLOR)
+            detected = detect_and_draw(frame, cascade, detected)
 
 	    t = cv.GetTickCount()  - t
             print "capture = %gfps" % (1000 / (t/(cv.GetTickFrequency()*1000.)))
