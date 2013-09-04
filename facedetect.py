@@ -18,21 +18,17 @@ from optparse import OptionParser
 # min_size=<minimum possible face size
 
 min_size = (2, 2)
-image_scale = 3
 haar_scale = 1.2
 min_neighbors = 2
 haar_flags = 0
-
-
-def map(value, leftMin, leftMax, rightMin, rightMax):
-	leftSpan = leftMax - leftMin
-	rightSpan = rightMax - rightMin
-	valueScaled = float(value - leftMin) / float(leftSpan)
-	return rightMin + (valueScaled * rightSpan)
+# detection image width
+smallwidth = 70
 
 def detect_and_draw(img, cascade, detected):
     # allocate temporary images
+
     gray = cv.CreateImage((img.width,img.height), 8, 1)
+    image_scale = img.width / smallwidth
     small_img = cv.CreateImage((cv.Round(img.width / image_scale), cv.Round (img.height / image_scale)), 8, 1)
 
     # convert color input image to grayscale
@@ -58,19 +54,15 @@ def detect_and_draw(img, cascade, detected):
                 pt1 = (int(x * image_scale), int(y * image_scale))
                 pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
                 cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+		print "Face at: ", pt1[0], ",", pt2[0], "\t", pt1[1], ",", pt2[1]
+		# find amount needed to pan/tilt
 		span = (pt1[0] + pt2[0]) / 2
 		stlt = (pt1[1] + pt2[1]) / 2
-		#valPan = map(span, 0, 320, 0.09, 0.18)
-		#valTilt = map(stlt, 0, 240, 0.09, 0.18)
-		valPan = map(span, 0, 320, 0.11, 0.15)
-		valTilt = map(stlt, 0, 240, 0.10, 0.14)
-		#print valPan, valTilt
-		print "Face at: ", pt1[0], ",", pt2[0], "\t", pt1[1], ",", pt2[1]
-
-		if span < 150:
-			 print "left", 150-span
-		if span > 150: 
-			 print "right", span-150
+		mid = smallwidth /2
+		if span < mid:
+			 print "left", mid -span
+		else:
+			 print "right", span - mid
 
 		#os.system('echo "6="' + str(valTilt) + ' > /dev/pi-blaster')
 		#os.system('echo "7="' + str(valPan) + ' > /dev/pi-blaster')
@@ -97,7 +89,15 @@ if __name__ == '__main__':
     command = "raspistill -tl 90 -n -rot 180 -o /run/shm/image%d.jpg -w 320 -h 240 "
     p=subprocess.Popen(command,shell=True)
 
-    time.sleep(0.5)
+    # wait until we have at least 2 image files
+
+    while True:
+	    files = filter(os.path.isfile, glob.glob('/run/shm/' + "image*jpg"))
+	    if files > 1:
+		break
+	    print "waiting for images"
+	    time.sleep(0.5)
+	
     if True:
 	detected = 0
         frame = None
